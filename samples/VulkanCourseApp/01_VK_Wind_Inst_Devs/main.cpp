@@ -5,10 +5,12 @@
 // we will be checking generic error
 #include <stdexcept>
 #include <vector>
-
 #include <iostream>
 
+#include "VulkanRenderer.h"
+
 GLFWwindow *window;
+VulkanRenderer vulkanRenderer;
 
 void initWindow(std::string wName = "Test Window", const int width = 800, const int height = 600)
 {
@@ -31,12 +33,19 @@ int main()
 	// create window
 	initWindow("Test Window", 800, 600);
 
+	// Create Vulkan renderer instance!
+	if(vulkanRenderer.init(window) == EXIT_FAILURE)
+	{
+		return EXIT_FAILURE;
+	}
+	
 	// loop until close
 	while(!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
 	}
 
+	vulkanRenderer.cleanUp();
 
 	//clean up
 	// Destroy glfw window and stop glfw
