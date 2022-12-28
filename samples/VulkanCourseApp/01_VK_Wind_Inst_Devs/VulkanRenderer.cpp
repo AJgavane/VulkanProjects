@@ -13,6 +13,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 	try
 	{
 		createInstance();
+		setupDebugMessenger();
 		getPhysicalDevice();
 		createLogicalDevice();
 	}
@@ -27,6 +28,12 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 void VulkanRenderer::createInstance()
 {
+	// add validation check
+	if(m_enableValidationLayers && !checkValidationLayerSupport())
+	{
+		throw std::runtime_error("Validation Layer requested, But not available!");
+	}
+
 	// Information about the application itself (not just vk but the whole application)
 	// NOTE:Most data here doesn't affect the programmer and its for developer convienence
 	// Debugging and log informations
@@ -68,6 +75,12 @@ void VulkanRenderer::createInstance()
 		instanceExtensions.push_back(glfwExtensions[i]);
 	}
 
+	// validation check on extensions
+	if(m_enableValidationLayers)
+	{
+		instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+	}
+
 	// Check if instanceExtension supported!
 	if(!checkInstanceExtensionSupport(&instanceExtensions))
 	{
@@ -79,8 +92,19 @@ void VulkanRenderer::createInstance()
 
 	// validation layer
 	// TODO:setup validation layer that instance will use.
-	createInfo.enabledLayerCount = 0;
-	createInfo.ppEnabledLayerNames = nullptr;
+	// TODO: Updated validation layer!!
+	if(m_enableValidationLayers)
+	{
+		std::cout << "Validation Layer: ON!" << std::endl;
+		createInfo.enabledLayerCount = static_cast<uint32_t>(this->m_validationLayers.size());
+		createInfo.ppEnabledLayerNames = this->m_validationLayers.data();
+	}
+	else {
+		std::cout << "Validation Layer: OFF!" << std::endl;
+		createInfo.enabledLayerCount = 0;
+		createInfo.ppEnabledLayerNames = nullptr;
+	}
+
 
 	// Create instance
 	VkResult result = vkCreateInstance(&createInfo, nullptr, &m_instance);
@@ -89,6 +113,86 @@ void VulkanRenderer::createInstance()
 	{
 		throw std::runtime_error("Failed to create VK Instance!");
 	} 
+}
+
+void VulkanRenderer::createLogicalDevice()
+{
+	// get queue family indieces for the chosen phy dev
+	QueueFamiliesIndices indices = getQueueFamilies(m_mainDevice.m_physicalDevice);
+
+	// QUeue logical device needs to create and info to do so (we'll add more later)
+	VkDeviceQueueCreateInfo queueCreateInfo = {};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;		// index of the family to create a queue from
+	queueCreateInfo.queueCount = 1;									// number of queues to create;
+	float priority = 1.0f;
+	queueCreateInfo.pQueuePriorities = &priority;				// VK needs to know how to handle multiple queues, so decide priority (1 - high, 0 -low)
+
+
+	// information to create logical device (sometimes called "device")
+	VkDeviceCreateInfo deviceCreateInfo = {};
+	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	deviceCreateInfo.queueCreateInfoCount = 1;					// number of queue create infos
+	deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;		// List of create infos so dev can create requried queues
+
+	deviceCreateInfo.enabledExtensionCount = 0;		//Num of logical dev ext. instance handles extensions
+	deviceCreateInfo.ppEnabledExtensionNames = nullptr;		// list of enabled logical dev ext
+	//deviceCreateInfo.enabledLayerCount = 0;
+
+	// physical device features used by logical device
+	VkPhysicalDeviceFeatures deviceFeatures = {};
+	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;		// enable shader stages:VS, GS, TS, etc
+
+	// create the logical device for the given physical device
+	VkResult result = vkCreateDevice(m_mainDevice.m_physicalDevice, &deviceCreateInfo, nullptr, &m_mainDevice.m_logicalDevice);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create a Logical Device");
+	}
+
+	// Queues are created at the same time as the Device
+	// So we want to handle the queues
+	// From given logical device, of given queue family, of given queue index (0 since only 1 queue), place ref in given vkQueue
+	vkGetDeviceQueue(m_mainDevice.m_logicalDevice, indices.graphicsFamily, 0, &m_graphicsQueue);	// grab our queue for us
+}
+
+VkResult VulkanRenderer::createDebugUtilsMessengerEXT(
+	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator)
+{
+	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_instance, "vkCreateDebugUtilsMessengerEXT");
+	if(func != nullptr)
+	{
+		return func(m_instance, pCreateInfo, pAllocator, &m_debugMessenger);
+	} else
+	{
+		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
+}
+
+void VulkanRenderer::setupDebugMessenger()
+{
+	if (!m_enableValidationLayers)
+		return;
+
+	VkDebugUtilsMessengerCreateInfoEXT	createInfo;
+	populateDebugMessengerCreateInfo(createInfo);
+
+	if(createDebugUtilsMessengerEXT(&createInfo, nullptr) != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to setup DEBUG MESSENGER!");
+	}
+}
+
+void VulkanRenderer::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
+{
+	createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+								 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT; // VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT -- gave too many warnings!
+	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+							 VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+							 VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+	createInfo.pfnUserCallback = m_debugCallback;
 }
 
 void VulkanRenderer::getPhysicalDevice()
@@ -123,51 +227,9 @@ void VulkanRenderer::getPhysicalDevice()
 	}
 }
 
-void VulkanRenderer::createLogicalDevice()
-{
-	// get queue family indieces for the chosen phy dev
-	QueueFamiliesIndices indices = getQueueFamilies(m_mainDevice.m_physicalDevice);
-
-	// QUeue logical device needs to create and info to do so (we'll add more later)
-	VkDeviceQueueCreateInfo queueCreateInfo = {};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;		// index of the family to create a queue from
-	queueCreateInfo.queueCount = 1;									// number of queues to create;
-	float priority = 1.0f;
-	queueCreateInfo.pQueuePriorities = &priority;				// VK needs to know how to handle multiple queues, so decide priority (1 - high, 0 -low)
-
-
-	// information to create logical device (sometimes called "device")
-	VkDeviceCreateInfo deviceCreateInfo = {};
-	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceCreateInfo.queueCreateInfoCount = 1;					// number of queue create infos
-	deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;		// List of create infos so dev can create requried queues
-
-	deviceCreateInfo.enabledExtensionCount = 0;		//Num of logical dev ext. instance handles extensions
-	deviceCreateInfo.ppEnabledExtensionNames = nullptr;		// list of enabled logical dev ext
-	//deviceCreateInfo.enabledLayerCount = 0;
-
-	// physical device features used by logical device
-	VkPhysicalDeviceFeatures deviceFeatures = {};
-	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;		// enable shader stages:VS, GS, TS, etc
-
-	// create the logical device for the given physical device
-	VkResult result = vkCreateDevice(m_mainDevice.m_physicalDevice, &deviceCreateInfo, nullptr, &m_mainDevice.m_logicalDevice);
-	if(result != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to create a Logical Device");
-	}
-
-	// Queues are created at the same time as the Device
-	// So we want to handle the queues
-	// From given logical device, of given queue family, of given queue index (0 since only 1 queue), place ref in given vkQueue
-	vkGetDeviceQueue(m_mainDevice.m_logicalDevice, indices.graphicsFamily, 0, &m_graphicsQueue);	// grab our queue for us
-}
-
-
 bool VulkanRenderer::checkInstanceExtensionSupport(std::vector<const char*>* checkExtensions)
 {
-	// How many extensions VK support, so that we can create the arrya
+	// How many extensions VK support, so that we can create the array
 	uint32_t extensionCount = 0;
 	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
@@ -222,6 +284,39 @@ bool VulkanRenderer::checkDeviceSuitable(VkPhysicalDevice device)
 	return indices.isValid();
 }
 
+bool VulkanRenderer::checkValidationLayerSupport()
+{
+	// How many instance vLayers VK support, so that we can create the array
+	uint32_t layerCount = 0;
+	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+	// create a list of vkLayerProperties using count
+	std::vector<VkLayerProperties> availableLayers(layerCount);
+	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+
+	// check if all of the layers in validationLayers exist in the availableLayers list
+	for (const char* layerName: this->m_validationLayers)
+	{
+		bool layerFound = false;
+
+		for(const auto &layerProperties: availableLayers)
+		{
+			if(strcmp(layerName, layerProperties.layerName))
+			{
+				layerFound = true;
+				break;
+			}
+			if(!layerFound)
+			{
+				return  false;
+			}
+		}
+	}
+
+	return true;
+}
+
 QueueFamiliesIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice device)
 {
 	QueueFamiliesIndices indices;
@@ -254,9 +349,22 @@ QueueFamiliesIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice device)
 	return indices;
 }
 
+void VulkanRenderer::destroyDebugUtilsMessengerEXT(const VkAllocationCallbacks* pAllocator)
+{
+	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT");
+	if (func != nullptr) {
+		func(m_instance, m_debugMessenger, pAllocator);
+	}
+}
+
 // Clean up our code
 void VulkanRenderer::cleanUp()
 {
+	if(m_enableValidationLayers)
+	{
+		destroyDebugUtilsMessengerEXT(nullptr);
+	}
+
 	vkDestroyDevice(m_mainDevice.m_logicalDevice, nullptr);
 	vkDestroyInstance(m_instance, nullptr);	// should be the last to be deleted!
 }
