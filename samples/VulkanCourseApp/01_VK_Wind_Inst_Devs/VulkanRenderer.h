@@ -1,11 +1,17 @@
 #pragma once
 
+#define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <vector>
+
 #include <stdexcept>
+#include <vector>
+#include <set>
+
 #include <iostream>
+
 #include "Utilities.h"
+#include "VulkanValidation.h"
 
 
 class VulkanRenderer
@@ -34,50 +40,42 @@ private:
 	} m_mainDevice;
 
 	VkQueue m_graphicsQueue;
+	VkQueue m_presentationQueue;
+	VkSurfaceKHR m_surface;
 
-	const std::vector<const char*> m_validationLayers = {	"VK_LAYER_KHRONOS_validation"};
+	
 
-#ifdef NDEBUG
-	const bool m_enableValidationLayers = false;
-#else
-	const bool m_enableValidationLayers = true;
-#endif
+
 
 	// Vulkan functions
 	// -Create functions
 	void createInstance();
+	void createDebugCallback();
 	void createLogicalDevice();
-	VkResult createDebugUtilsMessengerEXT(
-		//VkInstance instance, 
-		const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, 
-		const VkAllocationCallbacks* pAllocator);
+	void createSurface();
+
 
 	// -Set Functions
-	void setupDebugMessenger();
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+	VkResult createDebugUtilsMessengerEXT(
+		const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, 
+		const VkAllocationCallbacks* pAllocator
+	);
 
 	// - Get Functions
 	void getPhysicalDevice();
 
+
 	// - Support functions
 	// -- checker functions
 	bool checkInstanceExtensionSupport(std::vector<const char*> *checkExtensions);
-	bool checkDeviceSuitable(VkPhysicalDevice device);
+	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
 	bool checkValidationLayerSupport();					// Validation layer
+	bool checkDeviceSuitable(VkPhysicalDevice device);
 
 	// -- Getter functions
 	QueueFamiliesIndices getQueueFamilies(VkPhysicalDevice device);
-
-	// new static member function
-	static VKAPI_ATTR VkBool32 VKAPI_CALL m_debugCallback(
-		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-		VkDebugUtilsMessageTypeFlagsEXT messageType, 
-		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, 
-		void* pUserData)
-	{
-		std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-		return VK_FALSE;
-	}
+	SwapchainDetails	 getSwapchainDetails(VkPhysicalDevice device);
 
 	// -Destroy functions
 	void destroyDebugUtilsMessengerEXT(const VkAllocationCallbacks* pAllocator);
