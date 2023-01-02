@@ -1,5 +1,7 @@
 #pragma once
 
+#include <fstream>
+
 const std::vector<const char*> deviceExtensions ={
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
@@ -21,5 +23,39 @@ struct SwapchainDetails
 {
 	VkSurfaceCapabilitiesKHR		surfaceCapabilities;	//Surface properties: image size/extent, etc.
 	std::vector<VkSurfaceFormatKHR>	formats;			//Surface image formats: RGBA and bits for each
-	std::vector<VkPresentModeKHR>		presentationModes;		//How images should be presented to the screen
+	std::vector<VkPresentModeKHR>	presentationModes;		//How images should be presented to the screen
 };
+
+struct SwapchainImage
+{
+	VkImage image;
+	VkImageView imageView;
+};
+
+ 
+static std::vector<char> readFile(const std::string &filename)
+{
+	// Open stream from given file
+	// std::ios::binary == tells stream to read file as binary
+	// std::ios::ate	== tells stream to start reading file from the end of the file
+	std::ifstream file(filename, std::ios::binary | std::ios::ate);
+
+	// Check if file stream successfully opened
+	if(!file.is_open())
+	{
+		throw std::runtime_error("Failed to open a FILE!");
+	}
+
+	// Get current read position and use to resize the file buffer
+	size_t fileSize = (size_t)file.tellg();
+	std::vector<char> fileBuffer(fileSize);
+
+	// Move the read position (seek to) to the start of the file.
+	file.seekg(0);
+
+	file.read(fileBuffer.data(), fileSize);
+
+	file.close();
+
+	return fileBuffer;
+}
