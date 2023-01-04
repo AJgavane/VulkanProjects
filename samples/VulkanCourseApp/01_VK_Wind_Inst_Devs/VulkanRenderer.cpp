@@ -123,7 +123,7 @@ void VulkanRenderer::createInstance()
 void VulkanRenderer::createLogicalDevice()
 {
 	// get queue family indieces for the chosen phy dev
-	QueueFamiliesIndices indices = getQueueFamilies(m_mainDevice.m_physicalDevice);
+	QueueFamilyIndices indices = getQueueFamilies(m_mainDevice.m_physicalDevice);
 
 	// Vector for queue creation information, and set for family indices 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -233,7 +233,7 @@ void VulkanRenderer::createSwapchain()
 	//		Graphics_Queue: draws :: Presentation_Queue: puts it on the display/surface
 
 	// Get queue family indices
-	QueueFamiliesIndices indices = getQueueFamilies(m_mainDevice.m_physicalDevice);
+	QueueFamilyIndices indices = getQueueFamilies(m_mainDevice.m_physicalDevice);
 
 	// If graphics and presentation families are diff, then swapchain must be shared between families
 	if(indices.graphicsFamily != indices.presentationFamily)
@@ -588,6 +588,49 @@ void VulkanRenderer::createFramebuffers()
 
 }
 
+void VulkanRenderer::createCommandPool()
+{
+	// Get indices of queue families from device
+	QueueFamilyIndices queueFamilyIndices = getQueueFamilies(m_mainDevice.m_physicalDevice);
+
+	VkCommandPoolCreateInfo poolCreateInfo = {};
+	poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolCreateInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;		// Queue family type that buffer from this cmd pool will use
+
+	// Create a Graphics Queue family cmd pool
+	VkResult result = vkCreateCommandPool(m_mainDevice.m_logicalDevice, &poolCreateInfo, nullptr, m_graphicsCmdPool);
+	if(result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create a COMMAND POOL!");
+	}
+}
+
+void VulkanRenderer::createCommandBuffers()
+{
+	// its just a bunch of create infos
+
+	// REsize the command buffer to have 1 for each framebuffer
+	m_commandBuffers.resize(m_swapchainImages.size());
+
+	// allocating not creating! Cmd buffer already exists. Memory is already there
+	VkCommandBufferAllocateInfo cmdBufAllcInfo = {};
+	cmdBufAllcInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;	
+	cmdBufAllcInfo.commandPool = m_graphicsCmdPool;							//
+	cmdBufAllcInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;					// PRIMARY  : Buffers you submit directly to queue. Can't be called by other buffers
+																			// SECONDARY: Buffers can't be called directly. Can be called by another buffer via
+																			//			  vkCmdExecuteCommand(buffer) when recording commands in primary buffer
+	cmdBufAllcInfo.commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size());		// Size of cmd buffers we are creating
+
+	// Allocate Command buffers and places handles in array of buffers
+	VkResult result = vkAllocateCommandBuffers(m_mainDevice.m_logicalDevice, &cmdBufAllcInfo, m_commandBuffers.data());
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to allocate COMMAND BUFFERS!");
+	}
+
+	//NOTE: Since its vkALLOCATEcommandBuffers, we are not creating it, hence we don't need to destroy it
+}
+
 VkResult VulkanRenderer::createDebugUtilsMessengerEXT(
 	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator)
 {
@@ -711,7 +754,7 @@ bool VulkanRenderer::checkDeviceSuitable(VkPhysicalDevice device)
 	// We will be checking queue family is supported
 		// - for that we will be creating a struct where we can store what queues phy device can handle
 		
-	QueueFamiliesIndices indices = getQueueFamilies(device);
+	QueueFamilyIndices indices = getQueueFamilies(device);
 
 	bool extensionsSupported = checkDeviceExtensionSupport(device);
 
@@ -791,9 +834,9 @@ bool VulkanRenderer::checkValidationLayerSupport()
 	return true;
 }
 
-QueueFamiliesIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice device)
+QueueFamilyIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice device)
 {
-	QueueFamiliesIndices qFamIndices;
+	QueueFamilyIndices qFamIndices;
 
 	// enumerate, create vector, and populate
 	uint32_t queueFamilyCount = 0;
@@ -872,53 +915,6 @@ void VulkanRenderer::destroyDebugUtilsMessengerEXT(const VkAllocationCallbacks* 
 	if (func != nullptr) {
 		func(m_instance, m_debugMessenger, pAllocator);
 	}
-}
-
-// Clean up our code
-void VulkanRenderer::cleanUp()
-{
-	// Destroy framebuffer
-	for(auto fb: m_swapchainFramebuffers)
-	{
-		vkDestroyFramebuffer(m_mainDevice.m_logicalDevice, fb, nullptr);
-	}
-
-	// Destroy pipeline
-	vkDestroyPipeline(m_mainDevice.m_logicalDevice, m_graphicsPipeline, nullptr);
-
-	// Destroy pipeline layout
-	vkDestroyPipelineLayout(m_mainDevice.m_logicalDevice, m_pipelineLayout, nullptr);
-
-	// Destroy Render pass
-	vkDestroyRenderPass(m_mainDevice.m_logicalDevice, m_renderPass, nullptr);
-
-	// Because we have created IMAGE_VIEWS, we need to destroy them as well
-	for(auto image: m_swapchainImages)
-	{
-		vkDestroyImageView(m_mainDevice.m_logicalDevice, image.imageView, nullptr);
-	}
-
-	// Destroy swapchain
-	vkDestroySwapchainKHR(m_mainDevice.m_logicalDevice, m_swapchain, nullptr);
-
-	// Destroy the surface
-	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-
-	// Destroy the logical device
-	vkDestroyDevice(m_mainDevice.m_logicalDevice, nullptr);
-
-	// Destroy the validationlayer debugger
-	if(enableValidationLayers)
-	{
-		destroyDebugUtilsMessengerEXT(nullptr);
-	}
-
-	// Destroy the instance
-	vkDestroyInstance(m_instance, nullptr);	// should be the last to be deleted!
-}
-
-VulkanRenderer::~VulkanRenderer()
-{
 }
 
 
@@ -1049,4 +1045,56 @@ VkShaderModule VulkanRenderer::createShaderModule(const std::vector<char>& code)
 	}
 
 	return shaderModule;
+}
+
+
+
+// Clean up our code
+void VulkanRenderer::cleanUp()
+{
+	// Destroy command pool
+	vkDestroyCommandPool(m_mainDevice.m_logicalDevice, m_graphicsCmdPool, nullptr);
+
+	// Destroy framebuffer
+	for (auto fb : m_swapchainFramebuffers)
+	{
+		vkDestroyFramebuffer(m_mainDevice.m_logicalDevice, fb, nullptr);
+	}
+
+	// Destroy pipeline
+	vkDestroyPipeline(m_mainDevice.m_logicalDevice, m_graphicsPipeline, nullptr);
+
+	// Destroy pipeline layout
+	vkDestroyPipelineLayout(m_mainDevice.m_logicalDevice, m_pipelineLayout, nullptr);
+
+	// Destroy Render pass
+	vkDestroyRenderPass(m_mainDevice.m_logicalDevice, m_renderPass, nullptr);
+
+	// Because we have created IMAGE_VIEWS, we need to destroy them as well
+	for (auto image : m_swapchainImages)
+	{
+		vkDestroyImageView(m_mainDevice.m_logicalDevice, image.imageView, nullptr);
+	}
+
+	// Destroy swapchain
+	vkDestroySwapchainKHR(m_mainDevice.m_logicalDevice, m_swapchain, nullptr);
+
+	// Destroy the surface
+	vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+
+	// Destroy the logical device
+	vkDestroyDevice(m_mainDevice.m_logicalDevice, nullptr);
+
+	// Destroy the validationlayer debugger
+	if (enableValidationLayers)
+	{
+		destroyDebugUtilsMessengerEXT(nullptr);
+	}
+
+	// Destroy the instance
+	vkDestroyInstance(m_instance, nullptr);	// should be the last to be deleted!
+}
+
+VulkanRenderer::~VulkanRenderer()
+{
 }

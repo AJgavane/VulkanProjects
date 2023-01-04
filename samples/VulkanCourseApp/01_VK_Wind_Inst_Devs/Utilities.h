@@ -7,7 +7,7 @@ const std::vector<const char*> deviceExtensions ={
 };
 
 // Indices (location) of queue families if they exists at all
-struct QueueFamiliesIndices
+struct QueueFamilyIndices
 {
 	int graphicsFamily = -1;		// location of graphics queue family
 	int presentationFamily = -1;	// location of presentation queue family

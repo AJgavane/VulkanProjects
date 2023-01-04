@@ -49,14 +49,19 @@ private:
 	VkQueue			m_presentationQueue;
 	VkSurfaceKHR	m_surface;
 	VkSwapchainKHR	m_swapchain;
+
 	std::vector<SwapchainImage> m_swapchainImages;
 	std::vector<VkFramebuffer> m_swapchainFramebuffers;
+	std::vector<VkCommandBuffer> m_commandBuffers;
 
 
 	// -- Pipeline
 	VkPipeline m_graphicsPipeline;
 	VkPipelineLayout m_pipelineLayout;
 	VkRenderPass m_renderPass;
+
+	// -- Pools
+	VkCommandPool m_graphicsCmdPool;
 
 	// -- Utility
 	VkFormat		m_swapchainImageFormat;
@@ -73,6 +78,8 @@ private:
 	void createRenderPass();
 	void createGraphicsPipeline();
 	void createFramebuffers();
+	void createCommandPool();
+	void createCommandBuffers();
 
 	// -Set Functions
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
@@ -93,7 +100,7 @@ private:
 	bool checkDeviceSuitable(VkPhysicalDevice device);
 
 	// -- Getter functions
-	QueueFamiliesIndices getQueueFamilies(VkPhysicalDevice device);
+	QueueFamilyIndices getQueueFamilies(VkPhysicalDevice device);
 	SwapchainDetails	 getSwapchainDetails(VkPhysicalDevice device);
 
 	// -Destroy functions
