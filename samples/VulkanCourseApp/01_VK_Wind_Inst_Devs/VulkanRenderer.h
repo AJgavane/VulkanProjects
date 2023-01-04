@@ -11,6 +11,9 @@
 // imported for creating swapchain
 #include <algorithm>	
 
+// imported for renderpass::subpass
+#include <array>
+
 #include <iostream>
 
 #include "Utilities.h"
@@ -50,7 +53,9 @@ private:
 
 
 	// -- Pipeline
+	VkPipeline m_graphicsPipeline;
 	VkPipelineLayout m_pipelineLayout;
+	VkRenderPass m_renderPass;
 
 	// -- Utility
 	VkFormat		m_swapchainImageFormat;
@@ -64,6 +69,7 @@ private:
 	void createLogicalDevice();
 	void createSurface();
 	void createSwapchain();
+	void createRenderPass();
 	void createGraphicsPipeline();
 
 	// -Set Functions
