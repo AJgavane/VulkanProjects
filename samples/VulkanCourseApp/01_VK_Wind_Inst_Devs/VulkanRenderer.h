@@ -50,6 +50,7 @@ private:
 	VkSurfaceKHR	m_surface;
 	VkSwapchainKHR	m_swapchain;
 	std::vector<SwapchainImage> m_swapchainImages;
+	std::vector<VkFramebuffer> m_swapchainFramebuffers;
 
 
 	// -- Pipeline
@@ -71,6 +72,7 @@ private:
 	void createSwapchain();
 	void createRenderPass();
 	void createGraphicsPipeline();
+	void createFramebuffers();
 
 	// -Set Functions
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);

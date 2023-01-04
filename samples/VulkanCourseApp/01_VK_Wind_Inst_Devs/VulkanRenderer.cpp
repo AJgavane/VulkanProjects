@@ -557,6 +557,37 @@ void VulkanRenderer::createGraphicsPipeline()
 	vkDestroyShaderModule(m_mainDevice.m_logicalDevice, vertexShaderModule, nullptr);
 }
 
+void VulkanRenderer::createFramebuffers()
+{
+	// Resize framebuffer count to swapchain image count
+	m_swapchainFramebuffers.resize(m_swapchainImages.size());
+
+	// Create a framebuffer for each swapchain image
+	for(size_t i = 0; i < m_swapchainFramebuffers.size(); i++)
+	{
+		// We will be having multiple attachments like depth
+		std::array<VkImageView, 1> attachments = {
+			m_swapchainImages[i].imageView
+		};
+
+		VkFramebufferCreateInfo framebufferCreateInfo = {};
+		framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferCreateInfo.renderPass = m_renderPass;									// Render pass layout  the FB be used with
+		framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());	
+		framebufferCreateInfo.pAttachments = attachments.data();							// List of attachments 1-to-1 with render pass
+		framebufferCreateInfo.width = m_swapchainExtent.width;								// FB width
+		framebufferCreateInfo.height = m_swapchainExtent.height;							// FB height
+		framebufferCreateInfo.layers = 1;													// FB layers
+
+		VkResult result = vkCreateFramebuffer(m_mainDevice.m_logicalDevice, &framebufferCreateInfo, nullptr, &m_swapchainFramebuffers[i]);
+		if(result != VK_SUCCESS)
+		{
+			throw std::runtime_error("Failed to create a FRAMEBUFFER!");
+		}
+	}
+
+}
+
 VkResult VulkanRenderer::createDebugUtilsMessengerEXT(
 	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator)
 {
@@ -846,6 +877,12 @@ void VulkanRenderer::destroyDebugUtilsMessengerEXT(const VkAllocationCallbacks* 
 // Clean up our code
 void VulkanRenderer::cleanUp()
 {
+	// Destroy framebuffer
+	for(auto fb: m_swapchainFramebuffers)
+	{
+		vkDestroyFramebuffer(m_mainDevice.m_logicalDevice, fb, nullptr);
+	}
+
 	// Destroy pipeline
 	vkDestroyPipeline(m_mainDevice.m_logicalDevice, m_graphicsPipeline, nullptr);
 
