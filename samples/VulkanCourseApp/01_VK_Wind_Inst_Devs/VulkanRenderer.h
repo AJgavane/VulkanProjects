@@ -81,6 +81,9 @@ private:
 	void createCommandPool();
 	void createCommandBuffers();
 
+	// - Record Function
+	void recordCommands();
+
 	// -Set Functions
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 	VkResult createDebugUtilsMessengerEXT(
