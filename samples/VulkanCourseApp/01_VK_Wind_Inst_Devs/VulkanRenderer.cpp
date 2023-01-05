@@ -20,6 +20,10 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		createSwapchain();
 		createRenderPass();
 		createGraphicsPipeline();
+		createFramebuffers();
+		createCommandPool();
+		createCommandBuffers();
+		recordCommands();
 	}
 	catch (const std::runtime_error &e)
 	{
