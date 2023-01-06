@@ -24,6 +24,7 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		createCommandPool();
 		createCommandBuffers();
 		recordCommands();
+		createSynchronization();
 	}
 	catch (const std::runtime_error &e)
 	{
@@ -32,6 +33,56 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 	}
 	
 	return 0;
+}
+
+void VulkanRenderer::draw()
+{
+	/* -- GET NEXT IMAGE -- */
+	// Get index of the next image to be drawn to, and signal semaphore when ready to be drawn to
+	uint32_t imageIndex;
+	vkAcquireNextImageKHR(m_mainDevice.m_logicalDevice, m_swapchain, std::numeric_limits<uint64_t>::max(), 
+							m_semaphoreImageAvailable, VK_NULL_HANDLE, &imageIndex);
+
+	// 2. Submit a command buffer to queue for execution, make sure it waits for image to be signaled as available before drawing
+	//	and signals when it has finished rendering
+	/* -- SUBMIT COMMAND BUFFER TO RENDER -- */
+	// Queue submission informaiton
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.waitSemaphoreCount = 1;								// #semaphores to wait on. wait only on one semaphore, which is m_semaphoreImageAvailable
+	submitInfo.pWaitSemaphores	  = &m_semaphoreImageAvailable;		// list of semaphores to wait on
+	VkPipelineStageFlags waitStages[] = {						
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+	};
+	submitInfo.pWaitDstStageMask = waitStages;						// stages to check semaphores at
+	submitInfo.commandBufferCount = 1;								// #command buffers to submit
+	submitInfo.pCommandBuffers = &m_commandBuffers[imageIndex];		// command buffer to submit		
+	submitInfo.signalSemaphoreCount = 1;							// #semaphores to signal
+	submitInfo.pSignalSemaphores = &m_semaphoreRenderFinished;		// Semaphore to signal when command buffer finishes
+
+	// Submit command buffer to queue
+	VkResult result = vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	if(result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to SUBMIT COMMAND BUFFER TO QUEUE!");
+	}
+
+	// 3. Present image to screen when it has signaled finished rendering
+	/* -- PRESENT RENDERED IMAGE TO SCREEN -- */
+	VkPresentInfoKHR presentInfo = {};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = 1;								// #semaphores to wait on
+	presentInfo.pWaitSemaphores = &m_semaphoreRenderFinished;		// Semaphore to wait on
+	presentInfo.swapchainCount = 1;									// #swapchains to present to
+	presentInfo.pSwapchains = &m_swapchain;							// Swapchains to present images to
+	presentInfo.pImageIndices = &imageIndex;						// Index of images in swapchains to present
+
+	// Present image
+	result = vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to PRESENT IMAGE TO SCREEN!");
+	}
 }
 
 void VulkanRenderer::createInstance()
@@ -635,6 +686,21 @@ void VulkanRenderer::createCommandBuffers()
 	// NOTE: Since its vkALLOCATEcommandBuffers, we are not creating it, hence we don't need to destroy it
 }
 
+void VulkanRenderer::createSynchronization()
+{
+	// Semaphore creation information
+	VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+	semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+
+	if(vkCreateSemaphore(m_mainDevice.m_logicalDevice, &semaphoreCreateInfo, nullptr, &m_semaphoreImageAvailable) != VK_SUCCESS ||
+		vkCreateSemaphore(m_mainDevice.m_logicalDevice, &semaphoreCreateInfo, nullptr, &m_semaphoreRenderFinished) != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create SEMAPHORES!");
+	}
+
+}
+
 void VulkanRenderer::recordCommands()
 {
 	// Information about how to begin each cmd buffer
@@ -1116,6 +1182,13 @@ VkShaderModule VulkanRenderer::createShaderModule(const std::vector<char>& code)
 // Clean up our code
 void VulkanRenderer::cleanUp()
 {
+	// Wait until no actions are being run on device before destroying
+	vkDeviceWaitIdle(m_mainDevice.m_logicalDevice);
+
+	// Destroy Semaphores
+	vkDestroySemaphore(m_mainDevice.m_logicalDevice, m_semaphoreRenderFinished, nullptr);
+	vkDestroySemaphore(m_mainDevice.m_logicalDevice, m_semaphoreImageAvailable, nullptr);
+
 	// Destroy command pool
 	vkDestroyCommandPool(m_mainDevice.m_logicalDevice, m_graphicsCmdPool, nullptr);
 
