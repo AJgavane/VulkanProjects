@@ -34,6 +34,7 @@ public:
 
 private:
 	GLFWwindow *m_window;
+	int m_currFrame = 0;
 
 	// Vulkan Components
 	// -- Main
@@ -61,7 +62,7 @@ private:
 	VkPipelineLayout m_pipelineLayout;
 	VkRenderPass m_renderPass;
 
-	// -- Pools
+	// -- Pools 
 	VkCommandPool m_graphicsCmdPool;
 
 	// -- Utility
@@ -69,8 +70,9 @@ private:
 	VkExtent2D		m_swapchainExtent;
 
 	// -- Synchronization
-	VkSemaphore m_semaphoreImageAvailable;
-	VkSemaphore m_semaphoreRenderFinished;
+	std::vector<VkSemaphore> m_semaphoreImageAvailable;
+	std::vector<VkSemaphore> m_semaphoreRenderFinished;
+	std::vector<VkFence>	 m_drawFences;
 
 	
 	// Vulkan functions
