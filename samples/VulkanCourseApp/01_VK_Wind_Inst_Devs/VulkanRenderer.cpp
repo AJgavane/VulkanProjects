@@ -17,6 +17,19 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		createSurface();
 		getPhysicalDevice();
 		createLogicalDevice();
+
+		// Create a mesh
+		std::vector<Vertex> meshVertices = {
+			{glm::vec3(0.5, -0.5, 0.0)},
+			{glm::vec3(0.5, 0.5, 0.0)},
+			{ glm::vec3(-0.5, 0.5, 0.0)},//*/
+
+			{glm::vec3(-0.5, 0.5, 0.0)},
+			{glm::vec3(-0.5, -0.5, 0.0)},
+			{glm::vec3(0.5, -0.5, 0.0)},//*/
+		};
+		firstMesh = Mesh(m_mainDevice.m_physicalDevice, m_mainDevice.m_logicalDevice, &meshVertices);
+
 		createSwapchain();
 		createRenderPass();
 		createGraphicsPipeline();
@@ -460,13 +473,33 @@ void VulkanRenderer::createGraphicsPipeline()
 
 
 	// CREATE PIPELINE
-	/** -- VERTEX INPUT (ToDo: Put vertex description when rss created) -- **/
+
+	// How the data for a single vertex	(including pos, tex, normal, color, etc) is as a whole
+	VkVertexInputBindingDescription bindingDescription = {};
+	bindingDescription.binding = 0;									// Can bind multiple streams of data, this defines which one
+	bindingDescription.stride = sizeof(Vertex);						// stride length
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;		// How to move b/w data after each vertex?
+																	// VK_VERTEX_INPUT_RATE_VERTEX: Move onto the next vertex
+																	// VK_VERTEX_INPUT_RATE_INSTNACE: Move to a vertex of a next instance.
+
+	// how the data of an attribute is defined within a vertex
+	std::array<VkVertexInputAttributeDescription, 1> attributeDescriptions;
+
+	// Position Attribute
+	attributeDescriptions[0].binding = 0;								// Which binding the data is at( should be same as above)
+	attributeDescriptions[0].location = 0;								// Location in shader where data will be read from
+	attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;	// Format data input will take (also helps define the size of data)
+	attributeDescriptions[0].offset = offsetof(Vertex, a_position);		// Where is ths attribute is defined for a single vertex
+
+	// ToDo: Add Color Attrib
+
+	/** -- VERTEX INPUT -- **/
 	VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo = {};
 	vertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputCreateInfo.vertexBindingDescriptionCount = 0;
-	vertexInputCreateInfo.pVertexBindingDescriptions = nullptr;		// List of vertex binding description (data spacing, stride info, etc)
-	vertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;	// List of vertex attribute description (data format and where to find to/from)
+	vertexInputCreateInfo.vertexBindingDescriptionCount = 1;
+	vertexInputCreateInfo.pVertexBindingDescriptions = &bindingDescription;						// List of vertex binding description (data spacing, stride info, etc)
+	vertexInputCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputCreateInfo.pVertexAttributeDescriptions = attributeDescriptions.data();				// List of vertex attribute description (data format and where to find to/from)
 
 
 	/** -- INPUT ASSEMBLY -- **/
@@ -761,9 +794,13 @@ void VulkanRenderer::recordCommands()
 					// Pattern for drawing multiple objects :
 					//		bind vertices
 					//		vkCmdDraw()
+					VkBuffer vertexBuffers[] = { firstMesh.getVertexBuffer() };			// Buffers to bind
+					VkDeviceSize offsets[] = { 0 };										// Offsets into buffers being bound
+					vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);	// Command to bind vertex buffer before drawing with time
+					
 				
 				// Execute our pipeline
-				vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
+				vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(firstMesh.getVertexCount()), 1, 0, 0);
 
 				// Note: WE can have another pipeline here: for example for deferred shading: the above pipeline can be of Gbuffer pass
 				//			and the following pipeline can be about deferred pass
@@ -1202,6 +1239,9 @@ void VulkanRenderer::cleanUp()
 {
 	// Wait until no actions are being run on device before destroying
 	vkDeviceWaitIdle(m_mainDevice.m_logicalDevice);
+
+	// Destroy the mesh
+	firstMesh.destroyVertexBuffer();
 
 	// Destroy Semaphores
 	for(size_t i = 0; i < MAX_FRAME_DRAWS; i++)

@@ -14,6 +14,8 @@
 // imported for renderpass::subpass
 #include <array>
 
+#include "Mesh.h"
+
 #include <iostream>
 
 #include "Utilities.h"
@@ -35,6 +37,9 @@ public:
 private:
 	GLFWwindow *m_window;
 	int m_currFrame = 0;
+
+	// Scene Objects
+	Mesh firstMesh;
 
 	// Vulkan Components
 	// -- Main
