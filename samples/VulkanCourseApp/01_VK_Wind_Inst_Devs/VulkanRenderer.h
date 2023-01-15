@@ -63,9 +63,9 @@ private:
 
 
 	// -- Pipeline
-	VkPipeline m_graphicsPipeline;
+	VkPipeline		 m_graphicsPipeline;
 	VkPipelineLayout m_pipelineLayout;
-	VkRenderPass m_renderPass;
+	VkRenderPass	 m_renderPass;
 
 	// -- Pools 
 	VkCommandPool m_graphicsCmdPool;

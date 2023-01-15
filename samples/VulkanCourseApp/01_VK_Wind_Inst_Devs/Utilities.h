@@ -121,9 +121,7 @@ static void createBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VkDev
 																																		// VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT: CPU can interact with the memeory
 																																		// VK_MEMORY_PROPERTY_HOST_COHERENT_BIT: Allows placement of data straight into buffer after it
 																																		// allocates memory to the VkDevice
-										
-
-/*-- ALLOCATE MEMORY to VkDeviceMemory --*/
+	/*-- ALLOCATE MEMORY to VkDeviceMemory --*/
 	result = vkAllocateMemory(device, &memAllocInfo, nullptr, bufferMemory);
 	if (result != VK_SUCCESS)
 	{
@@ -132,4 +130,54 @@ static void createBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VkDev
 
 	/*-- BIND MEMORY TO THE VERTEX BUFFER --*/
 	vkBindBufferMemory(device, *buffer, *bufferMemory, 0);
+}
+
+static void copyBuffer(VkDevice device, VkQueue transferQueue, VkCommandPool transferCommandPool,
+						VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize bufferSize)
+{
+	// Command buffer to hold transfer commands
+	VkCommandBuffer transferCommandBuffer;
+
+	// Commmand buffer details
+	VkCommandBufferAllocateInfo allocateInfo = {};
+	allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocateInfo.commandPool = transferCommandPool;
+	allocateInfo.commandBufferCount = 1;
+
+	// ALlocate command buffer from pool
+	vkAllocateCommandBuffers(device, &allocateInfo, &transferCommandBuffer);
+
+	// Information to begin the command buffer record
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;		//We're only using the cmd buffer once, so set up for one time submit
+
+	// Begin recording transfer command
+	vkBeginCommandBuffer(transferCommandBuffer, &beginInfo);
+
+	//Region of data to copy from and to
+	VkBufferCopy bufferCopyRegion	= {};
+	bufferCopyRegion.srcOffset		= 0;
+	bufferCopyRegion.dstOffset		= 0;
+	bufferCopyRegion.size			= bufferSize;
+
+	// Command to copy src buffer to dst buffer
+	vkCmdCopyBuffer(transferCommandBuffer, srcBuffer, dstBuffer, 1, &bufferCopyRegion);
+
+	// End Commands
+	vkEndCommandBuffer(transferCommandBuffer);
+
+	// Queue submission information
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &transferCommandBuffer;
+
+	// Submit transfer command to transfer queue and wait until ti finishers
+	vkQueueSubmit(transferQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(transferQueue);
+
+	// Free temp command buffer back to pool
+	vkFreeCommandBuffers(device, transferCommandPool, 1, &transferCommandBuffer);
 }

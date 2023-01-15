@@ -17,6 +17,11 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		createSurface();
 		getPhysicalDevice();
 		createLogicalDevice();
+		createSwapchain();
+		createRenderPass();
+		createGraphicsPipeline();
+		createFramebuffers();
+		createCommandPool();
 
 		// Create a mesh
 		std::vector<Vertex> meshVertices = {
@@ -27,13 +32,11 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 			{glm::vec3(-0.5, -0.5, 0.0), glm::vec3(1.0, 1.0, 1.0)},
 			{glm::vec3(0.5, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0)},//*/
 		};
-		firstMesh = Mesh(m_mainDevice.m_physicalDevice, m_mainDevice.m_logicalDevice, &meshVertices);
+		firstMesh = Mesh(m_mainDevice.m_physicalDevice, m_mainDevice.m_logicalDevice,
+			m_graphicsQueue, m_graphicsCmdPool,
+			&meshVertices);
 
-		createSwapchain();
-		createRenderPass();
-		createGraphicsPipeline();
-		createFramebuffers();
-		createCommandPool();
+
 		createCommandBuffers();
 		recordCommands();
 		createSynchronization();

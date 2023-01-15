@@ -7,12 +7,13 @@ Mesh::Mesh()
 {
 }
 
-Mesh::Mesh(VkPhysicalDevice newPhysicalDevice, VkDevice newDevice, std::vector<Vertex>* vertices)
+Mesh::Mesh(VkPhysicalDevice newPhysicalDevice, VkDevice newDevice, VkQueue transferQueue,
+			VkCommandPool transferCommandPool, std::vector<Vertex>* vertices)
 {
 	m_vertexCount = vertices->size();
 	m_physicalDevice = newPhysicalDevice;
 	m_device = newDevice;
-	createVertexBuffer(vertices);
+	createVertexBuffer(transferQueue, transferCommandPool, vertices);
 }
 
 int Mesh::getVertexCount()
@@ -36,22 +37,37 @@ Mesh::~Mesh()
 {
 }
 
-void Mesh::createVertexBuffer(std::vector<Vertex>* vertices)
+void Mesh::createVertexBuffer(VkQueue transferQueue, VkCommandPool transferCommandPool, std::vector<Vertex>* vertices)
 {
 	// Get size of buffer needed for vertices
 	VkDeviceSize  bufferSize = sizeof(Vertex) * vertices->size();
 
-	// Create Buffer and allocate memory to it	
-	createBuffer(m_physicalDevice, m_device, bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+	//TEMP: Buffers to "stage" vertex data before transferring it to GPU
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+
+	// Create Staging Buffer and allocate memory to it	 
+	createBuffer(m_physicalDevice, m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-				&m_vertexBuffer, &m_vertexBufferMemory);
+				&stagingBuffer, &stagingBufferMemory);
 
-	/*-- MAP MEMORY TO VERTEX BUFFER --*/
+	/*-- MAP MEMORY TO STAGING BUFFER --*/
 	void* data;																					// 1. Create pointer to point in normal memory
-	vkMapMemory(m_device, m_vertexBufferMemory, 0, bufferSize, 0, &data);	// 2. "Map" the vertex buffer mem to that point
+	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);	// 2. "Map" the vertex buffer mem to that point
 	memcpy(data, vertices->data(), (size_t)bufferSize);							// 3. Copy mem from vertices vector to that point
-	vkUnmapMemory(m_device, m_vertexBufferMemory);												// 4. UnMap the vertex buffer memory
+	vkUnmapMemory(m_device, stagingBufferMemory);												// 4. UnMap the vertex buffer memory
 
-	std::cout << "vertexCount: " << m_vertexCount << std::endl;
+
+	// CREATE BUFFER w/ TRANSFER_DST_BIT to mark as a recipient of transfer data (also vertex buffer)
+	// Buffer memory is to be DEVICE_LOCAL_BIT ==> m/o is on GPU and only accessible by it and not CPU (HOST)
+	createBuffer(m_physicalDevice, m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_vertexBuffer, &m_vertexBufferMemory);
+
+	// Copying staging buffer to vertex buffer on GPU
+	copyBuffer(m_device, transferQueue, transferCommandPool, stagingBuffer, m_vertexBuffer, bufferSize);
+
+	// Cleanup the staging buffer
+	vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+	vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 }
 
