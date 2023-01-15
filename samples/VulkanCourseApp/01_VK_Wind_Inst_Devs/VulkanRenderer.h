@@ -31,7 +31,6 @@ public:
 	void draw();
 	void cleanUp();
 	
-	
 	~VulkanRenderer();
 
 private:
@@ -57,9 +56,9 @@ private:
 	VkSurfaceKHR	m_surface;
 	VkSwapchainKHR	m_swapchain;
 
-	std::vector<SwapchainImage> m_swapchainImages;
-	std::vector<VkFramebuffer> m_swapchainFramebuffers;
-	std::vector<VkCommandBuffer> m_commandBuffers;
+	std::vector<SwapchainImage>		m_swapchainImages;
+	std::vector<VkFramebuffer>		m_swapchainFramebuffers;
+	std::vector<VkCommandBuffer>	m_commandBuffers;
 
 
 	// -- Pipeline

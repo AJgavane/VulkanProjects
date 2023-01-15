@@ -23,18 +23,24 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		createFramebuffers();
 		createCommandPool();
 
-		// Create a mesh
+		// CREATE MESH DATA
+		// Vertex Data
 		std::vector<Vertex> meshVertices = {
 			{glm::vec3(0.5, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0)},
 			{glm::vec3(0.5, 0.5, 0.0), glm::vec3(0.0, 1.0, 0.0)},
 			{ glm::vec3(-0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0)},//*/
-			{glm::vec3(-0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0)},
 			{glm::vec3(-0.5, -0.5, 0.0), glm::vec3(1.0, 1.0, 1.0)},
-			{glm::vec3(0.5, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0)},//*/
 		};
+
+		// Index Data
+		std::vector<uint32_t> meshIndices = {
+			0, 1, 2,
+			2, 3, 0
+		};
+
 		firstMesh = Mesh(m_mainDevice.m_physicalDevice, m_mainDevice.m_logicalDevice,
-			m_graphicsQueue, m_graphicsCmdPool,
-			&meshVertices);
+						 m_graphicsQueue, m_graphicsCmdPool,
+						 &meshVertices, &meshIndices);
 
 
 		createCommandBuffers();
@@ -804,10 +810,15 @@ void VulkanRenderer::recordCommands()
 					VkBuffer vertexBuffers[] = { firstMesh.getVertexBuffer() };			// Buffers to bind
 					VkDeviceSize offsets[] = { 0 };										// Offsets into buffers being bound
 					vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);	// Command to bind vertex buffer before drawing with time
-					
+
+					// Bind mesh index buffer, with 0 offset and using uint32 type
+					vkCmdBindIndexBuffer(m_commandBuffers[i], firstMesh.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 				
 				// Execute our pipeline
-				vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(firstMesh.getVertexCount()), 1, 0, 0);
+				// a) drawing using vertex buffer
+					//vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(firstMesh.getVertexCount()), 1, 0, 0);
+				// b) drawing using indices
+				vkCmdDrawIndexed(m_commandBuffers[i], firstMesh.getIndexCount(), 1, 0, 0, 0);
 
 				// Note: WE can have another pipeline here: for example for deferred shading: the above pipeline can be of Gbuffer pass
 				//			and the following pipeline can be about deferred pass
@@ -1248,7 +1259,7 @@ void VulkanRenderer::cleanUp()
 	vkDeviceWaitIdle(m_mainDevice.m_logicalDevice);
 
 	// Destroy the mesh
-	firstMesh.destroyVertexBuffer();
+	firstMesh.destroyBuffers();
 
 	// Destroy Semaphores
 	for(size_t i = 0; i < MAX_FRAME_DRAWS; i++)
