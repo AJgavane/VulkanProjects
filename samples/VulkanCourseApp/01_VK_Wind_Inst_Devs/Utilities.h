@@ -12,7 +12,8 @@ const std::vector<const char*> deviceExtensions ={
 
 struct Vertex
 {
-	glm::vec3 a_position;	//vertex position
+	glm::vec3 a_position;	// vertex position
+	glm::vec3 a_color;		// vertex color
 };
 
 // Indices (location) of queue families if they exists at all

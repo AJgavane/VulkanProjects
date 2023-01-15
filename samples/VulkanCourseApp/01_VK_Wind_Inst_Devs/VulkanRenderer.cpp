@@ -20,13 +20,12 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 
 		// Create a mesh
 		std::vector<Vertex> meshVertices = {
-			{glm::vec3(0.5, -0.5, 0.0)},
-			{glm::vec3(0.5, 0.5, 0.0)},
-			{ glm::vec3(-0.5, 0.5, 0.0)},//*/
-
-			{glm::vec3(-0.5, 0.5, 0.0)},
-			{glm::vec3(-0.5, -0.5, 0.0)},
-			{glm::vec3(0.5, -0.5, 0.0)},//*/
+			{glm::vec3(0.5, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0)},
+			{glm::vec3(0.5, 0.5, 0.0), glm::vec3(0.0, 1.0, 0.0)},
+			{ glm::vec3(-0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0)},//*/
+			{glm::vec3(-0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0)},
+			{glm::vec3(-0.5, -0.5, 0.0), glm::vec3(1.0, 1.0, 1.0)},
+			{glm::vec3(0.5, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0)},//*/
 		};
 		firstMesh = Mesh(m_mainDevice.m_physicalDevice, m_mainDevice.m_logicalDevice, &meshVertices);
 
@@ -483,15 +482,20 @@ void VulkanRenderer::createGraphicsPipeline()
 																	// VK_VERTEX_INPUT_RATE_INSTNACE: Move to a vertex of a next instance.
 
 	// how the data of an attribute is defined within a vertex
-	std::array<VkVertexInputAttributeDescription, 1> attributeDescriptions;
+	std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions;
 
 	// Position Attribute
 	attributeDescriptions[0].binding = 0;								// Which binding the data is at( should be same as above)
 	attributeDescriptions[0].location = 0;								// Location in shader where data will be read from
-	attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;	// Format data input will take (also helps define the size of data)
+	attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;		// Format data input will take (also helps define the size of data)
 	attributeDescriptions[0].offset = offsetof(Vertex, a_position);		// Where is ths attribute is defined for a single vertex
 
-	// ToDo: Add Color Attrib
+	//Color Attrib
+	attributeDescriptions[1].binding = 0;								
+	attributeDescriptions[1].location = 1;								
+	attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;		
+	attributeDescriptions[1].offset = offsetof(Vertex, a_color);		
+
 
 	/** -- VERTEX INPUT -- **/
 	VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo = {};
