@@ -11,3 +11,7 @@ Rendering Quad Using Vertex Buffer - Added Position Attribute
 
 Rendering Quad Using Vertex Buffer - Added Color attribute
 ![](QuadUsingVertexBuffer_Color.png)
+
+
+Rendering Multiple Meshes using Index Buffer
+![](RenderingTwoMeshes.png)

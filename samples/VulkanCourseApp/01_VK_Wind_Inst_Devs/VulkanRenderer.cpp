@@ -26,10 +26,17 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 		// CREATE MESH DATA
 		// Vertex Data
 		std::vector<Vertex> meshVertices = {
-			{glm::vec3(0.5, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0)},
-			{glm::vec3(0.5, 0.5, 0.0), glm::vec3(0.0, 1.0, 0.0)},
-			{ glm::vec3(-0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0)},//*/
-			{glm::vec3(-0.5, -0.5, 0.0), glm::vec3(1.0, 1.0, 1.0)},
+			{glm::vec3(-0.1, -0.4, 0.0), glm::vec3(1.0, 0.0, 0.0)},
+			{glm::vec3(-0.1, 0.4, 0.0), glm::vec3(0.0, 1.0, 0.0)},
+			{ glm::vec3(-0.8, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0)},//*/
+			{glm::vec3(-0.8, -0.5, 0.0), glm::vec3(1.0, 1.0, 1.0)},
+		};
+
+		std::vector<Vertex> meshVertices2 = {
+			{glm::vec3(0.8, -0.5, 0.0), glm::vec3(1.0, 0.0, 0.0)},
+			{glm::vec3(0.8, 0.5, 0.0), glm::vec3(0.0, 1.0, 0.0)},
+			{ glm::vec3(0.1, 0.4, 0.0), glm::vec3(0.0, 0.0, 1.0)},//*/
+			{glm::vec3(0.1, -0.4, 0.0), glm::vec3(1.0, 1.0, 1.0)},
 		};
 
 		// Index Data
@@ -38,10 +45,15 @@ int VulkanRenderer::init(GLFWwindow* newWindow)
 			2, 3, 0
 		};
 
-		firstMesh = Mesh(m_mainDevice.m_physicalDevice, m_mainDevice.m_logicalDevice,
+		Mesh firstMesh = Mesh(m_mainDevice.m_physicalDevice, m_mainDevice.m_logicalDevice,
 						 m_graphicsQueue, m_graphicsCmdPool,
 						 &meshVertices, &meshIndices);
+		Mesh secondMesh = Mesh(m_mainDevice.m_physicalDevice, m_mainDevice.m_logicalDevice,
+						m_graphicsQueue, m_graphicsCmdPool,
+						&meshVertices2, &meshIndices);
 
+		meshList.push_back(firstMesh);
+		meshList.push_back(secondMesh);
 
 		createCommandBuffers();
 		recordCommands();
@@ -803,23 +815,21 @@ void VulkanRenderer::recordCommands()
 				// Bind Pipeline to be used in the Render Pass
 				vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
-					// Usually we set up vertex data here!
-					// Pattern for drawing multiple objects :
-					//		bind vertices
-					//		vkCmdDraw()
-					VkBuffer vertexBuffers[] = { firstMesh.getVertexBuffer() };			// Buffers to bind
+
+				for(auto& mesh: meshList){
+					VkBuffer vertexBuffers[] = { mesh.getVertexBuffer() };			// Buffers to bind
 					VkDeviceSize offsets[] = { 0 };										// Offsets into buffers being bound
 					vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);	// Command to bind vertex buffer before drawing with time
 
 					// Bind mesh index buffer, with 0 offset and using uint32 type
-					vkCmdBindIndexBuffer(m_commandBuffers[i], firstMesh.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+					vkCmdBindIndexBuffer(m_commandBuffers[i], mesh.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 				
-				// Execute our pipeline
-				// a) drawing using vertex buffer
-					//vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(firstMesh.getVertexCount()), 1, 0, 0);
-				// b) drawing using indices
-				vkCmdDrawIndexed(m_commandBuffers[i], firstMesh.getIndexCount(), 1, 0, 0, 0);
-
+					// Execute our pipeline 
+					// a) drawing using vertex buffer
+						//vkCmdDraw(m_commandBuffers[i], static_cast<uint32_t>(firstMesh.getVertexCount()), 1, 0, 0);
+					// b) drawing using indices
+					vkCmdDrawIndexed(m_commandBuffers[i], mesh.getIndexCount(), 1, 0, 0, 0);
+				}
 				// Note: WE can have another pipeline here: for example for deferred shading: the above pipeline can be of Gbuffer pass
 				//			and the following pipeline can be about deferred pass
 
@@ -1259,7 +1269,8 @@ void VulkanRenderer::cleanUp()
 	vkDeviceWaitIdle(m_mainDevice.m_logicalDevice);
 
 	// Destroy the mesh
-	firstMesh.destroyBuffers();
+	for (auto& mesh : meshList)
+		mesh.destroyBuffers();
 
 	// Destroy Semaphores
 	for(size_t i = 0; i < MAX_FRAME_DRAWS; i++)

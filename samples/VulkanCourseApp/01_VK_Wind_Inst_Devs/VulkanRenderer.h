@@ -30,7 +30,7 @@ public:
 	int init(GLFWwindow *newWindow);
 	void draw();
 	void cleanUp();
-	
+
 	~VulkanRenderer();
 
 private:
@@ -38,7 +38,7 @@ private:
 	int m_currFrame = 0;
 
 	// Scene Objects
-	Mesh firstMesh;
+	std::vector<Mesh> meshList;
 
 	// Vulkan Components
 	// -- Main
