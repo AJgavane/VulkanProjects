@@ -29,25 +29,35 @@ void initWindow(std::string wName = "Test Window", const int width = 800, const 
 	window = glfwCreateWindow(width, height, wName.c_str(), nullptr, nullptr);
 }
 
-
-
-
-
 int main()
 {
 	// create window
-	initWindow("Rendering Two Meshes", 800, 600);
+	initWindow("Descriptor Sets and Uniform Buffers", 800, 600);
 
 	// Create Vulkan renderer instance!
 	if(vulkanRenderer.init(window) == EXIT_FAILURE)
 	{
 		return EXIT_FAILURE;
 	}
-	
+
+	float angle = 0.0f;
+	float deltaTime = 0.0f;
+	float lastTime = 0.0f;
+
 	// loop until close
 	while(!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
+
+		float currTime = glfwGetTime();
+		deltaTime = currTime - lastTime;
+		lastTime = currTime;
+
+		angle += 10.0 * deltaTime;
+		if (angle > 360) { angle -= 360.0f; }
+
+		vulkanRenderer.UpdateModel(glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0, 0.0, 1.0)));
+
 		vulkanRenderer.draw();
 	}
 

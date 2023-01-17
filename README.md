@@ -15,3 +15,7 @@ Rendering Quad Using Vertex Buffer - Added Color attribute
 
 Rendering Multiple Meshes using Index Buffer
 ![](RenderingTwoMeshes.png)
+
+
+Implmented Descriptor Sets: Uniform Buffer. MVP matrix
+![](DescriptorSet_and_UnifromBuffer.png)
